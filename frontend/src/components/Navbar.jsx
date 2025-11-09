@@ -1,41 +1,42 @@
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, LogOut, LogIn } from 'lucide-react';
 import { useCart } from '../contexts/useCart.jsx';
+import { useAuth } from '../contexts/authContext.jsx';
+import { useToast } from '../hooks/use-toast.js';
 
-// Simple Badge component - defined inline
-const Badge = ({ className = '', variant = 'default', children, ...props }) => {
-  const baseStyles = "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2";
-  
-  const variantStyles = {
-    default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
-    secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-    destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-    outline: "text-foreground",
-  };
+const Badge = ({ className = '', children, ...props }) => {
+  const baseStyles =
+    'inline-flex items-center justify-center rounded-full border border-transparent bg-secondary text-secondary-foreground px-2.5 py-0.5 text-xs font-semibold transition-colors';
 
-  const styles = [
-    baseStyles,
-    variantStyles[variant] || variantStyles.default,
-    className,
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  return <div className={styles} {...props}>{children}</div>;
+  return (
+    <span className={`${baseStyles} ${className}`.trim()} {...props}>
+      {children}
+    </span>
+  );
 };
 
 const Navbar = () => {
   const { totalItems } = useCart();
+  const { user, signOut, isAuthenticated } = useAuth();
   const location = useLocation();
+  const { toast } = useToast();
 
   const isActive = (path) => location.pathname === path;
+
+  const handleSignOut = () => {
+    signOut();
+    toast({
+      title: 'Signed out',
+      description: 'You have been successfully signed out',
+    });
+  };
 
   return (
     <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="text-2xl font-bold text-primary hover:opacity-80 transition-opacity">
-            Lovable Shop
+            Prime Shop
           </Link>
           
           <div className="flex items-center gap-8">
@@ -55,6 +56,16 @@ const Navbar = () => {
             >
               Products
             </Link>
+            {isAuthenticated && user?.role === 'manager' && (
+              <Link
+                to="/add-product"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive('/add-product') ? 'text-primary' : 'text-foreground'
+                }`}
+              >
+                Add Product
+              </Link>
+            )}
             <Link
               to="/cart"
               className={`relative flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary ${
@@ -68,6 +79,22 @@ const Navbar = () => {
                 </Badge>
               )}
             </Link>
+            {isAuthenticated ? (
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </button>
+            ) : (
+              <Link to="/auth">
+                <span className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors">
+                  <LogIn className="h-4 w-4" />
+                  Sign In
+                </span>
+              </Link>
+            )}
           </div>
         </div>
       </div>

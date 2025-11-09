@@ -13,7 +13,7 @@ const Home = () => {
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Welcome to Lovable Shop
+              Welcome to Prime Shop
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground mb-8">
               Discover products you'll love, curated with care ✨
