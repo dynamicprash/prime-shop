@@ -4,6 +4,7 @@ const productSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
+        index: true,
     },
     price: {
         type: Number,
@@ -18,11 +19,7 @@ const productSchema = new mongoose.Schema({
         required: true,
     },
     image: {
-        type: String,
-        required: true,
-    },
-    stock: {
-        type: Number,
+        type: String, //user passes the url
         required: true,
     },
     createdBy: {

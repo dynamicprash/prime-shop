@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../contexts/authContext';
 import { useToast } from '../hooks/use-toast.js';
+import { createProduct } from '../api/products.js';
 
 const AddProduct = () => {
   const [name, setName] = useState('');
@@ -10,23 +11,34 @@ const AddProduct = () => {
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
   const [category, setCategory] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { toast } = useToast();
-  const { user, isAuthenticated, isReady } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isReady && (!isAuthenticated || user?.role !== 'manager')) {
+    if (!isLoading && (!isAuthenticated || user?.role !== 'manager')) {
       navigate('/');
     }
-  }, [isAuthenticated, isReady, navigate, user]);
+  }, [isAuthenticated, isLoading, navigate, user]);
 
-  if (isReady && (!isAuthenticated || user?.role !== 'manager')) {
+  if (isLoading) {
+    return (
+      <div className="min-h-[calc(100vh-200px)] flex items-center justify-center">
+        <p className="text-muted-foreground">Checking permissions...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || user?.role !== 'manager') {
     return null;
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (isSubmitting) return;
 
     if (!name || !price || !description || !image || !category) {
       toast({
@@ -37,16 +49,42 @@ const AddProduct = () => {
       return;
     }
 
-    toast({
-      title: 'Success',
-      description: 'Product added successfully!',
-    });
+    setIsSubmitting(true);
 
-    setName('');
-    setPrice('');
-    setDescription('');
-    setImage('');
-    setCategory('');
+    try {
+      await createProduct({
+        name,
+        price: Number(price),
+        description,
+        image,
+        category,
+      });
+
+      toast({
+        title: 'Success',
+        description: 'Product added successfully!',
+      });
+
+      setName('');
+      setPrice('');
+      setDescription('');
+      setImage('');
+      setCategory('');
+    } catch (error) {
+      const message =
+        error.response?.data?.message ||
+        (error.response?.status === 401
+          ? 'You must be signed in as a manager to add products.'
+          : 'Failed to add product. Please try again.');
+
+      toast({
+        title: 'Error',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -128,9 +166,10 @@ const AddProduct = () => {
 
           <button
             type="submit"
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            disabled={isSubmitting}
+            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            Add Product
+            {isSubmitting ? 'Adding...' : 'Add Product'}
           </button>
         </form>
       </div>

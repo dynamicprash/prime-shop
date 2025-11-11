@@ -2,16 +2,18 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../contexts/authContext';
-import { validateUser, USERS } from '../constants/users';
 import { useToast } from '../hooks/use-toast.js';
 
 const Auth = () => {
   const [isNewUser, setIsNewUser] = useState(false);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('customer');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -43,54 +45,52 @@ const Auth = () => {
 
     const emailValidationError = validateEmail(email);
     const passwordValidationError = validatePassword(password);
+    const nameValidationError =
+      isNewUser && !name.trim() ? 'Name is required' : '';
 
-    if (emailValidationError || passwordValidationError) {
+    if (emailValidationError || passwordValidationError || nameValidationError) {
       setEmailError(emailValidationError);
       setPasswordError(passwordValidationError);
+      setNameError(nameValidationError);
       return;
     }
 
     setEmailError('');
     setPasswordError('');
+    setNameError('');
 
-    if (isNewUser) {
-      const existingUser = USERS.find((user) => user.email === email);
-      if (existingUser) {
+    setIsSubmitting(true);
+
+    try {
+      if (isNewUser) {
+        const result = await signUp({ name, email, password, role });
+        const nextRole = result?.user?.role ?? role;
         toast({
-          title: 'Account Exists',
-          description: 'An account with this email already exists. Please sign in instead.',
-          variant: 'destructive',
+          title: 'Account Created',
+          description: `Welcome aboard! You are signed in as ${nextRole}.`,
         });
-        setIsNewUser(false);
-        return;
+      } else {
+        const result = await signIn({ email, password });
+        const nextRole = result?.user?.role ?? 'customer';
+        toast({
+          title: 'Success',
+          description: `Welcome back! You are signed in as ${nextRole}.`,
+        });
       }
 
-      const newUser = { email, password, role };
-      await signUp(newUser);
-
-      toast({
-        title: 'Account Created',
-        description: `Welcome aboard! You are signed in as ${role}.`,
-      });
       navigate('/');
-      return;
-    }
+    } catch (error) {
+      const description =
+        error.response?.data?.message ||
+        'Something went wrong. Please try again.';
 
-    const user = validateUser(email, password);
-
-    if (user) {
-      signIn(user);
-      toast({
-        title: 'Success',
-        description: `Welcome back! You are signed in as ${user.role}.`,
-      });
-      navigate('/');
-    } else {
       toast({
         title: 'Error',
-        description: 'Invalid email or password',
+        description,
         variant: 'destructive',
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -131,6 +131,26 @@ const Auth = () => {
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="space-y-4">
+            {isNewUser && (
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-foreground">
+                  Name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    setNameError('');
+                  }}
+                  placeholder="Enter your name"
+                  className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                {nameError && <p className="mt-1 text-sm text-destructive">{nameError}</p>}
+              </div>
+            )}
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-foreground">
                 Email
@@ -187,19 +207,16 @@ const Auth = () => {
 
           <button
             type="submit"
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            disabled={isSubmitting}
+            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            {isNewUser ? 'Sign Up' : 'Sign In'}
+            {isSubmitting ? 'Please wait...' : isNewUser ? 'Sign Up' : 'Sign In'}
           </button>
 
           {!isNewUser && (
             <div className="mt-4 p-4 bg-muted rounded-md">
               <p className="text-sm text-muted-foreground text-center">
-                Demo Accounts:
-                <br />
-                Manager: manager@gmail.com / 123
-                <br />
-                Customer: customer@gmail.com / 123
+                Tip: Use your registered email and password to sign in.
               </p>
             </div>
           )}

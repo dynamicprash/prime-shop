@@ -8,6 +8,8 @@ import Cart from './pages/cart.jsx';
 import Auth from './pages/auth.jsx';
 import AddProduct from './pages/add-product.jsx';
 import Checkout from './pages/checkout.jsx';
+import PaymentSuccess from './pages/payment-success.jsx';
+import PaymentFailure from './pages/payment-failure.jsx';
 
 function App() {
   return (
@@ -26,6 +28,8 @@ function App() {
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/add-product" element={<AddProduct />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/payment-failure" element={<PaymentFailure />} />
           </Routes>
         </main>
         <Footer />

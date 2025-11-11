@@ -1,56 +1,72 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-
-const AUTH_STORAGE_KEY = 'authUser';
+import { fetchCurrentUser, login as apiLogin, logout as apiLogout, register as apiRegister } from '../api/auth.js';
 
 const AuthContext = createContext();
 AuthContext.displayName = 'AuthContext';
 
-const safelyParseUser = (rawUser) => {
-  try {
-    return JSON.parse(rawUser);
-  } catch (error) {
-    console.warn('Unable to parse stored auth user.', error);
-    return null;
-  }
-};
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isReady, setIsReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (storedUser) {
-      setUser(safelyParseUser(storedUser));
-    }
-    setIsReady(true);
+    let isMounted = true;
+
+    const initialize = async () => {
+      try {
+        const currentUser = await fetchCurrentUser();
+        if (isMounted) {
+          setUser(currentUser);
+        }
+      } catch (err) {
+        // ignore 401s (not signed in)
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    initialize();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const persistUser = (nextUser) => {
-    if (nextUser) {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser));
-    } else {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+  const signIn = async (credentials) => {
+    setError(null);
+    try {
+      const data = await apiLogin(credentials);
+      setUser(data?.user ?? null);
+      return data;
+    } catch (err) {
+      setError(err);
+      throw err;
     }
   };
 
-  const signIn = (nextUser) => {
-    setUser(nextUser);
-    persistUser(nextUser);
+  const signUp = async (payload) => {
+    setError(null);
+    try {
+      await apiRegister(payload);
+      return await signIn({ email: payload.email, password: payload.password });
+    } catch (err) {
+      setError(err);
+      throw err;
+    }
   };
 
-  const signUp = async (nextUser) => {
-    /**
-     * Replace this with your real sign-up implementation.
-     * For now we simply persist the user immediately after "sign up".
-     */
-    signIn(nextUser);
-    return nextUser;
-  };
-
-  const signOut = () => {
-    setUser(null);
-    persistUser(null);
+  const signOut = async () => {
+    setError(null);
+    try {
+      await apiLogout();
+    } catch (err) {
+      setError(err);
+      // even if logout fails, clear client state
+    } finally {
+      setUser(null);
+    }
   };
 
   const value = useMemo(
@@ -60,9 +76,10 @@ export const AuthProvider = ({ children }) => {
       signOut,
       signUp,
       isAuthenticated: Boolean(user),
-      isReady,
+      isLoading,
+      error,
     }),
-    [user, isReady]
+    [user, isLoading, error]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

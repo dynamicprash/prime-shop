@@ -17,9 +17,13 @@ const orderItemSchema = new mongoose.Schema({
 });
 
 const orderSchema = new mongoose.Schema({
-    user: {
+    name: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
+        required: true,
+    },
+    email: {
+        type: String,
         required: true,
     },
     items: [orderItemSchema],

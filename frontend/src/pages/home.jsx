@@ -1,10 +1,40 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import ProductCard from '../components/product-card.jsx';
-import { products } from '../data/product.js';
+import { fetchProducts } from '../api/products.js';
 
 const Home = () => {
-  const featuredProducts = products.slice(0, 4);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProducts = async () => {
+      try {
+        const products = await fetchProducts();
+        if (isMounted) {
+          setFeaturedProducts(products.slice(0, 4));
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError('Failed to load featured products');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -50,9 +80,29 @@ const Home = () => {
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+            {isLoading && (
+              <p className="col-span-full text-center text-muted-foreground">
+                Loading products...
+              </p>
+            )}
+
+            {error && !isLoading && (
+              <p className="col-span-full text-center text-destructive">
+                {error}
+              </p>
+            )}
+
+            {!isLoading && !error && featuredProducts.length === 0 && (
+              <p className="col-span-full text-center text-muted-foreground">
+                No products available yet. Please check back soon!
+              </p>
+            )}
+
+            {!isLoading &&
+              !error &&
+              featuredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
           </div>
 
           <div className="text-center">

@@ -1,12 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
 import { useCart } from '../contexts/useCart.jsx';
+import { useAuth } from '../contexts/authContext.jsx';
 import { useToast } from '../hooks/use-toast.js';
+import EsewaForm from '../api/esewa.jsx';
 
 const Checkout = () => {
   const { items, totalPrice, clearCart } = useCart();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAuthenticated, isLoading } = useAuth();
+  const [esewaPayload, setEsewaPayload] = useState(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -17,13 +22,52 @@ const Checkout = () => {
     zipCode: '',
   });
 
-  useEffect(() => {
-    if (items.length === 0) {
-      navigate('/cart');
-    }
-  }, [items, navigate]);
+  const orderItems = useMemo(
+    () =>
+      items.map((item) => ({
+        productId: item.id,
+        quantity: item.quantity,
+      })),
+    [items]
+  );
 
-  if (items.length === 0) {
+  const shipping = useMemo(
+    () => ({
+      phone: formData.phone,
+      streetAddress: formData.address,
+      city: formData.city,
+      zipCode: formData.zipCode,
+    }),
+    [formData.address, formData.city, formData.phone, formData.zipCode]
+  );
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        toast({
+          title: 'Please sign in',
+          description: 'You need an account to complete your order.',
+          variant: 'destructive',
+        });
+        navigate('/auth');
+        return;
+      }
+
+      if (items.length === 0) {
+        navigate('/cart');
+      }
+    }
+  }, [isAuthenticated, isLoading, items.length, navigate, toast]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Preparing checkout...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || items.length === 0) {
     return null;
   }
 
@@ -32,7 +76,7 @@ const Checkout = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (!formData.name || !formData.email || !formData.address) {
@@ -43,14 +87,49 @@ const Checkout = () => {
       return;
     }
 
-    toast({
-      title: 'Order Placed! 🎉',
-      description: "Thank you for your order! We'll send you a confirmation email soon.",
+    const transactionUuid = uuidv4();
+    const amount = totalPrice.toFixed(2);
+    const pendingOrder = {
+      items: orderItems,
+      shipping: {
+        ...shipping,
+        name: formData.name,
+        email: formData.email,
+      },
+      totalAmount: Number(amount),
+      transactionUuid,
+    };
+
+    sessionStorage.setItem('pendingOrder', JSON.stringify(pendingOrder));
+
+    setEsewaPayload({
+      amount,
+      taxAmount: '0',
+      productServiceCharge: '0',
+      productDeliveryCharge: '0',
+      transactionUuid,
+      productCode: 'EPAYTEST',
+      successUrl: `${window.location.origin}/payment-success`,
+      failureUrl: `${window.location.origin}/payment-failure`,
     });
 
-    clearCart();
-    navigate('/');
+    toast({
+      title: 'Redirecting to eSewa',
+      description: 'Please complete your payment to finalize the order.',
+    });
   };
+
+  if (esewaPayload) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
+        <h2 className="text-2xl font-semibold">Redirecting to eSewa…</h2>
+        <p className="text-muted-foreground">
+          You will be redirected shortly. If nothing happens, please ensure pop-ups are allowed and try again.
+        </p>
+        <EsewaForm {...esewaPayload} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen py-12">
@@ -99,7 +178,7 @@ const Checkout = () => {
 
                   <div className="space-y-2">
                     <label htmlFor="phone" className="text-sm font-medium text-foreground">
-                      Phone Number
+                      Phone Number *
                     </label>
                     <input
                       id="phone"
@@ -108,6 +187,7 @@ const Checkout = () => {
                       value={formData.phone}
                       onChange={handleChange}
                       placeholder="+1 (555) 000-0000"
+                      required
                       className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </div>
@@ -144,7 +224,7 @@ const Checkout = () => {
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="zipCode" className="text-sm font-medium text-foreground">
-                        ZIP Code
+                        ZIP Code *
                       </label>
                       <input
                         id="zipCode"
@@ -152,6 +232,7 @@ const Checkout = () => {
                         value={formData.zipCode}
                         onChange={handleChange}
                         placeholder="10001"
+                        required
                         className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       />
                     </div>
@@ -215,4 +296,3 @@ const Checkout = () => {
 };
 
 export default Checkout;
-

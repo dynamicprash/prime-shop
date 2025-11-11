@@ -23,12 +23,20 @@ const Navbar = () => {
 
   const isActive = (path) => location.pathname === path;
 
-  const handleSignOut = () => {
-    signOut();
-    toast({
-      title: 'Signed out',
-      description: 'You have been successfully signed out',
-    });
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast({
+        title: 'Signed out',
+        description: 'You have been successfully signed out',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to sign out. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
