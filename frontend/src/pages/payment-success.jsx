@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '../hooks/use-toast.js';
-import { createOrder } from '../api/orders.js';
+import { createOrder, confirmOrderPayment } from '../api/orders.js';
 import { useCart } from '../contexts/useCart.jsx';
 
 const PaymentSuccess = () => {
@@ -27,16 +27,27 @@ const PaymentSuccess = () => {
       hasProcessedRef.current = true;
 
       try {
-        await createOrder({
+        const order = await createOrder({
           items: orderPayload.items,
           shipping: orderPayload.shipping,
         });
+        
+        // Auto-confirm order status after successful payment
+        if (order?._id) {
+          try {
+            await confirmOrderPayment(order._id);
+          } catch (statusError) {
+            console.warn('Could not auto-confirm order status:', statusError);
+            // Non-critical: order is created, status update can be done manually
+          }
+        }
+        
         clearCart();
         sessionStorage.removeItem('pendingOrder');
         setStatus('success');
         toast({
           title: 'Payment confirmed',
-          description: 'Your order has been placed successfully.',
+          description: 'Your order has been placed and confirmed successfully.',
         });
       } catch (error) {
         console.error('Failed to finalize order after eSewa payment', error);

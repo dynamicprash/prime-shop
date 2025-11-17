@@ -10,6 +10,7 @@ import AddProduct from './pages/add-product.jsx';
 import Checkout from './pages/checkout.jsx';
 import PaymentSuccess from './pages/payment-success.jsx';
 import PaymentFailure from './pages/payment-failure.jsx';
+import Orders from './pages/orders.jsx';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/add-product" element={<AddProduct />} />
+            <Route path="/orders" element={<Orders />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/payment-failure" element={<PaymentFailure />} />
           </Routes>

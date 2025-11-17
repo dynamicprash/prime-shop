@@ -65,13 +65,33 @@ const Navbar = () => {
               Products
             </Link>
             {isAuthenticated && user?.role === 'manager' && (
+              <>
+                <Link
+                  to="/add-product"
+                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                    isActive('/add-product') ? 'text-primary' : 'text-foreground'
+                  }`}
+                >
+                  Add Product
+                </Link>
+                <Link
+                  to="/orders"
+                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                    isActive('/orders') ? 'text-primary' : 'text-foreground'
+                  }`}
+                >
+                  Order History
+                </Link>
+              </>
+            )}
+            {isAuthenticated && user?.role === 'customer' && (
               <Link
-                to="/add-product"
+                to="/orders"
                 className={`text-sm font-medium transition-colors hover:text-primary ${
-                  isActive('/add-product') ? 'text-primary' : 'text-foreground'
+                  isActive('/orders') ? 'text-primary' : 'text-foreground'
                 }`}
               >
-                Add Product
+                My Orders
               </Link>
             )}
             <Link

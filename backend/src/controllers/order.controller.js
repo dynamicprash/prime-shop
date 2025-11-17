@@ -59,6 +59,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     streetAddress,
     city,
     zipCode,
+    status: 'pending', // Will be updated to 'confirmed' after payment verification
   });
 
   return res
@@ -71,7 +72,9 @@ export const listOrders = asyncHandler(async (req, res) => {
     throw new ApiError(401, 'Not authenticated');
   }
 
-  const orders = await Order.find({ name: req.user._id }).sort({ createdAt: -1 });
+  const orders = await Order.find({ name: req.user._id })
+    .populate('items.product', 'name image')
+    .sort({ createdAt: -1 });
 
   return res
     .status(200)
@@ -92,6 +95,81 @@ export const getOrder = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, order, 'Order fetched successfully'));
+});
+
+export const getAllOrders = asyncHandler(async (req, res) => {
+  if (!req.user || req.user.role !== 'manager') {
+    throw new ApiError(403, 'Forbidden: Only managers can view all orders');
+  }
+
+  const orders = await Order.find()
+    .populate('name', 'name email')
+    .populate('items.product', 'name image')
+    .sort({ createdAt: -1 });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, orders, 'All orders fetched successfully'));
+});
+
+export const updateOrderStatus = asyncHandler(async (req, res) => {
+  if (!req.user || req.user.role !== 'manager') {
+    throw new ApiError(403, 'Forbidden: Only managers can update order status');
+  }
+
+  const { orderId } = req.params;
+  const { status } = req.body;
+
+  const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+  if (!validStatuses.includes(status)) {
+    throw new ApiError(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+  }
+
+  const order = await Order.findByIdAndUpdate(
+    orderId,
+    { status },
+    { new: true, runValidators: true }
+  )
+    .populate('name', 'name email')
+    .populate('items.product', 'name image');
+
+  if (!order) {
+    throw new ApiError(404, 'Order not found');
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, order, 'Order status updated successfully'));
+});
+
+export const confirmOrderPayment = asyncHandler(async (req, res) => {
+  if (!req.user) {
+    throw new ApiError(401, 'Not authenticated');
+  }
+
+  const { orderId } = req.params;
+
+  const order = await Order.findOne({ _id: orderId, name: req.user._id });
+
+  if (!order) {
+    throw new ApiError(404, 'Order not found');
+  }
+
+  if (order.status !== 'pending') {
+    throw new ApiError(400, 'Order is already confirmed or processed');
+  }
+
+  const updatedOrder = await Order.findByIdAndUpdate(
+    orderId,
+    { status: 'confirmed' },
+    { new: true, runValidators: true }
+  )
+    .populate('name', 'name email')
+    .populate('items.product', 'name image');
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedOrder, 'Order confirmed successfully'));
 });
 
 
